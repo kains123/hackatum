@@ -1,54 +1,55 @@
-namespace Loupedeck.MxMaster4Plugin
+namespace Loupedeck.LogitechDevicesPlugin
 {
     using System;
     using System.Net.Http;
     using System.Text;
     using System.Threading.Tasks;
 
-    // This class implements an example command that counts button presses
-    // and sends the count to the Node server.
+    // This class implements an example command that counts button presses.
     public class CounterCommand : PluginDynamicCommand
     {
-        private Int32 _counter = 0;
-
-        // Reuse a single HttpClient for all instances
+        private int _counter = 0;
         private static readonly HttpClient Http = new HttpClient();
 
         public CounterCommand()
-            : base(displayName: "Press Counter",
-                   description: "Counts button presses and posts count",
-                   groupName: "Commands")
+            : base(displayName: "Press Counter", description: "Counts button presses", groupName: "Commands")
         {
         }
 
-        protected override void RunCommand(String actionParameter)
+        // Called when the user presses the command button
+        protected override void RunCommand(string actionParameter)
         {
-            this._counter++;
-            this.ActionImageChanged(); // update text on button
-            // PluginLog.Info($"Counter value is {this._counter}");
+            _counter++;
+            this.ActionImageChanged(); // update display on device
 
-            // fire-and-forget HTTP call
-            _ = SendCountAsync(this._counter);
+            Console.WriteLine($"[CounterCommand] Counter value is {_counter}");
+
+            // Fire-and-forget send to Node.js server
+            _ = SendCountAsync(_counter);
         }
 
-        protected override String GetCommandDisplayName(String actionParameter,
-            PluginImageSize imageSize) =>
-            $"Press Counter{Environment.NewLine}{this._counter}";
+        // Text shown on the key / UI
+        protected override string GetCommandDisplayName(string actionParameter, PluginImageSize imageSize) =>
+            $"Press Counter{Environment.NewLine}{_counter}";
 
-        private async Task SendCountAsync(int count)
+        // POST the current count to Node.js server
+        private static async Task SendCountAsync(int count)
         {
             try
             {
-                // JSON body we’ll send to Node
                 var json = $"{{\"type\":\"pressCount\",\"count\":{count}}}";
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await Http.PostAsync("http://localhost:3001/control", content);
-                // PluginLog.Info($"[CounterCommand] Sent count={count}, status={(int)response.StatusCode}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"[CounterCommand] HTTP error: {(int)response.StatusCode} {response.ReasonPhrase}");
+                }
             }
             catch (Exception ex)
             {
-                // PluginLog.Error($"[CounterCommand] Error sending count: {ex}");
+                Console.WriteLine($"[CounterCommand] Error sending count: {ex}");
             }
         }
     }

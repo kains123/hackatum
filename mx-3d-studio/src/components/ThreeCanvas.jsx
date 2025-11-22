@@ -40,7 +40,7 @@ function PlaceholderModel() {
 
 // --- OBJ 모델 컴포넌트 ---
 // 'rotation' prop을 받아 모델의 방향을 제어합니다.
-function ObjModel({ url, rotation }) {
+function ObjModel({ url, rotation, activeEvent }) {
   const obj = useLoader(OBJLoader, url);
 
   const centered = useMemo(() => {
@@ -69,7 +69,7 @@ function ObjModel({ url, rotation }) {
   }, [obj]);
 
   // 회전 값 적용:
-  return <primitive object={centered} rotation={rotation} />;
+  return <primitive object={centered} rotation={rotation} scale={zoom} />
 }
 
 // --- 메인 캔버스 컴포넌트 ---
@@ -77,6 +77,7 @@ export function ThreeCanvas({ objUrl, modelName, activeEvent }) {
   // const mx = useMxConsole();
   // 1. 회전 상태 및 값 관리
   const [rotationY, setRotationY] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(0); 
   const [isRotating, setIsRotating] = useState(false); // 회전 여부 상태
 
   // 2. 키보드 이벤트 리스너 (R 키를 누르면 회전 토글)
@@ -84,29 +85,26 @@ export function ThreeCanvas({ objUrl, modelName, activeEvent }) {
     // const evt = mx.activeEvent;
     if (!!activeEvent) {
       console.log("hi useEffect():", activeEvent.value)
+      if (!!activeEvent && activeEvent.type == "pressCount") {
+        setRotationY(activeEvent.value)
+      } else if (!!activeEvent && activeEvent.type == "zoom") {
+        setZoomLevel(activeEvent.value)
+      } 
+      
     }
-    
-    // const handleKeyDown = (e) => {
-    //   if (evt.count =! 1) {
-    //     setIsRotating(prev => !prev);
-    //   }
-    // };
-
-    // window.addEventListener('keydown', handleKeyDown);
-    // return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeEvent]);
 
   // 3. 회전 로직 제어 컴포넌트
-  const RotateController = () => {
-    
-    if (!!activeEvent) {
-        console.log(activeEvent.value + "active rotation")
-        console.log(typeof activeEvent.value)
+ //const RotateController = () => {
+   // if (!!activeEvent && activeEvent.type == "pressCount") {
+     //   console.log(activeEvent.type)
+       // console.log(activeEvent.value + "active rotation")
+      //  console.log(typeof activeEvent.value)
         // isRotating이 true일 때만 Y축 회전 값을 업데이트
-        setRotationY(200); // 0.5는 회전 속도입니다.
-      }
-    return null;
-  };
+      //  setRotationY(activeEvent.value); // 0.5는 회전 속도입니다.
+     // }
+   // return null;
+  //};
 
 
   return (
@@ -145,18 +143,21 @@ export function ThreeCanvas({ objUrl, modelName, activeEvent }) {
           args={[20, 40, new THREE.Color('#1e293b'), new THREE.Color('#020617')]}
           position={[0, -1, 0]}
         />
-
+        
         {/* 모델 / 플레이스홀더 */}
-         {!!activeEvent && 
-        <group rotation={[0, activeEvent.value, 0]}>
+         {!!activeEvent ? 
+        (<group rotation={[0, activeEvent.value, 0]}>
           {objUrl 
-            ? <ObjModel url={objUrl} rotation={[0, activeEvent.value, 0]} /> 
+            ? <ObjModel url={objUrl} rotation={[0, activeEvent.value, 0]} activeEvent={activeEvent} /> 
             : <PlaceholderModel />
           }
-        </group>}
-        
-        {/* 회전 로직 실행 */}
-        <RotateController />
+        </group>):(<group rotation={[0, rotationY, 0]}>
+          {objUrl 
+            ? <ObjModel url={objUrl} rotation={[0, rotationY, 0]} activeEvent={activeEvent}/> 
+            : <PlaceholderModel />
+          }
+        </group>)}
+      
 
         {/* 모델이 로드되었을 때 3D 공간의 라벨 */}
         {objUrl && (
