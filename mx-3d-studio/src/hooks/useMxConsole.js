@@ -39,7 +39,7 @@ export function useMxConsole() {
   }, []);
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:3000');
+    const ws = new WebSocket('ws://localhost:3001');
     wsRef.current = ws;
 
     ws.onopen = () => {

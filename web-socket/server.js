@@ -5,7 +5,7 @@ import bodyParser from "body-parser";
 const app = express();
 app.use(bodyParser.json());
 
-const PORT = 3000;
+const PORT = 3001;
 
 // Serve static files (index.html + JS)
 app.use(express.static("public"));
