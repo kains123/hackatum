@@ -1,6 +1,6 @@
-import React, { Suspense, useMemo } from 'react';
+import React, { useState, useRef, useEffect, Suspense, useMemo } from 'react';
 import * as THREE from 'three';
-import { Canvas, useLoader } from '@react-three/fiber';
+import { Canvas, useLoader, useFrame } from '@react-three/fiber';
 import {
   OrbitControls,
   Environment,
@@ -9,7 +9,10 @@ import {
 } from '@react-three/drei';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
+// import { useMxConsole } from '../hooks/useMxConsole.js';
+// --- 로더 UI 컴포넌트 ---
 function SceneLoader() {
+
   const { active, progress } = useProgress();
 
   if (!active) return null;
@@ -17,24 +20,27 @@ function SceneLoader() {
   return (
     <Html center>
       <div className="rounded-lg border border-slate-700/80 bg-slate-900/90 px-4 py-2 text-xs font-medium text-slate-100 shadow-lg backdrop-blur">
-        Loading {progress.toFixed(0)}%
+        로딩 중 {progress.toFixed(0)}%
       </div>
     </Html>
   );
 }
 
+// --- 플레이스홀더 모델 컴포넌트 ---
 function PlaceholderModel() {
   return (
     <group>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial metalness={0.1} roughness={0.5} />
+        <meshStandardMaterial metalness={0.1} roughness={0.5} color="#4f46e5" />
       </mesh>
     </group>
   );
 }
 
-function ObjModel({ url }) {
+// --- OBJ 모델 컴포넌트 ---
+// 'rotation' prop을 받아 모델의 방향을 제어합니다.
+function ObjModel({ url, rotation }) {
   const obj = useLoader(OBJLoader, url);
 
   const centered = useMemo(() => {
@@ -45,10 +51,9 @@ function ObjModel({ url }) {
     box.getSize(size);
 
     const maxAxis = Math.max(size.x, size.y, size.z) || 1;
-    const scale = 1.5 / maxAxis; // scale so largest dimension ≈1.5 units
+    const scale = 1.5 / maxAxis; 
     clone.scale.setScalar(scale);
 
-    // recenter to origin
     box.setFromObject(clone);
     const center = box.getCenter(new THREE.Vector3());
     clone.position.sub(center);
@@ -63,10 +68,47 @@ function ObjModel({ url }) {
     return clone;
   }, [obj]);
 
-  return <primitive object={centered} />;
+  // 회전 값 적용:
+  return <primitive object={centered} rotation={rotation} />;
 }
 
-export function ThreeCanvas({ objUrl, modelName }) {
+// --- 메인 캔버스 컴포넌트 ---
+export function ThreeCanvas({ objUrl, modelName, activeEvent }) {
+  // const mx = useMxConsole();
+  // 1. 회전 상태 및 값 관리
+  const [rotationY, setRotationY] = useState(0);
+  const [isRotating, setIsRotating] = useState(false); // 회전 여부 상태
+
+  // 2. 키보드 이벤트 리스너 (R 키를 누르면 회전 토글)
+  useEffect(() => {
+    // const evt = mx.activeEvent;
+    if (!!activeEvent) {
+      console.log("hi useEffect():", activeEvent.value)
+    }
+    
+    // const handleKeyDown = (e) => {
+    //   if (evt.count =! 1) {
+    //     setIsRotating(prev => !prev);
+    //   }
+    // };
+
+    // window.addEventListener('keydown', handleKeyDown);
+    // return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeEvent]);
+
+  // 3. 회전 로직 제어 컴포넌트
+  const RotateController = () => {
+    
+    if (!!activeEvent) {
+        console.log(activeEvent.value + "active rotation")
+        console.log(typeof activeEvent.value)
+        // isRotating이 true일 때만 Y축 회전 값을 업데이트
+        setRotationY(200); // 0.5는 회전 속도입니다.
+      }
+    return null;
+  };
+
+
   return (
     <Canvas
       shadows
@@ -104,14 +146,23 @@ export function ThreeCanvas({ objUrl, modelName }) {
           position={[0, -1, 0]}
         />
 
-        {/* Model / placeholder */}
-        {objUrl ? <ObjModel url={objUrl} /> : <PlaceholderModel />}
+        {/* 모델 / 플레이스홀더 */}
+         {!!activeEvent && 
+        <group rotation={[0, activeEvent.value, 0]}>
+          {objUrl 
+            ? <ObjModel url={objUrl} rotation={[0, activeEvent.value, 0]} /> 
+            : <PlaceholderModel />
+          }
+        </group>}
+        
+        {/* 회전 로직 실행 */}
+        <RotateController />
 
-        {/* Label in 3D space when a model is loaded */}
-        {objUrl && modelName && (
+        {/* 모델이 로드되었을 때 3D 공간의 라벨 */}
+        {objUrl && (
           <Html position={[0, 1.4, 0]} center>
             <div className="rounded-full bg-slate-900/90 px-3 py-1 text-xs font-medium text-slate-100 shadow border border-slate-700/80 backdrop-blur">
-              {modelName}
+              모델 이름: {modelName || "이름 없음"} | 회전 상태: {isRotating ? "회전 중 (R: 멈춤)" : "정지 (R: 시작)"}
             </div>
           </Html>
         )}
@@ -126,7 +177,6 @@ export function ThreeCanvas({ objUrl, modelName }) {
           maxDistance={10}
         />
 
-        {/* Subtle env map; can remove if you need max perf */}
         <Environment preset="city" />
         <SceneLoader />
       </Suspense>
