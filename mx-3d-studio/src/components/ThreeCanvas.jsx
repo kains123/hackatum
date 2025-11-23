@@ -40,7 +40,7 @@ function PlaceholderModel() {
 
 // --- OBJ 모델 컴포넌트 ---
 // 'rotation' prop을 받아 모델의 방향을 제어합니다.
-function ObjModel({ url, rotation, activeEvent }) {
+function ObjModel({ url }) {
   const obj = useLoader(OBJLoader, url);
 
   const centered = useMemo(() => {
@@ -69,7 +69,7 @@ function ObjModel({ url, rotation, activeEvent }) {
   }, [obj]);
 
   // 회전 값 적용:
-  return <primitive object={centered} rotation={rotation} scale={zoom} />
+  return <primitive object={centered} />
 }
 
 // --- 메인 캔버스 컴포넌트 ---
@@ -84,27 +84,14 @@ export function ThreeCanvas({ objUrl, modelName, activeEvent }) {
   useEffect(() => {
     // const evt = mx.activeEvent;
     if (!!activeEvent) {
-      console.log("hi useEffect():", activeEvent.value)
+      console.log("hi useEffect():", zoomLevel)
       if (!!activeEvent && activeEvent.type == "pressCount") {
         setRotationY(activeEvent.value)
       } else if (!!activeEvent && activeEvent.type == "zoom") {
         setZoomLevel(activeEvent.value)
       } 
-      
     }
   }, [activeEvent]);
-
-  // 3. 회전 로직 제어 컴포넌트
- //const RotateController = () => {
-   // if (!!activeEvent && activeEvent.type == "pressCount") {
-     //   console.log(activeEvent.type)
-       // console.log(activeEvent.value + "active rotation")
-      //  console.log(typeof activeEvent.value)
-        // isRotating이 true일 때만 Y축 회전 값을 업데이트
-      //  setRotationY(activeEvent.value); // 0.5는 회전 속도입니다.
-     // }
-   // return null;
-  //};
 
 
   return (
@@ -144,16 +131,19 @@ export function ThreeCanvas({ objUrl, modelName, activeEvent }) {
           position={[0, -1, 0]}
         />
         
-        {/* 모델 / 플레이스홀더 */}
-         {!!activeEvent ? 
-        (<group rotation={[0, activeEvent.value, 0]}>
+        {!!activeEvent ? 
+        (<group rotation={[0, rotationY, 0]} scale={zoomLevel}>
           {objUrl 
-            ? <ObjModel url={objUrl} rotation={[0, activeEvent.value, 0]} activeEvent={activeEvent} /> 
+            ? <ObjModel url={objUrl}/> 
             : <PlaceholderModel />
           }
-        </group>):(<group rotation={[0, rotationY, 0]}>
+        </group>
+        ):(
+          <group rotation={[0, rotationY, 0]} scale={zoomLevel}>
           {objUrl 
-            ? <ObjModel url={objUrl} rotation={[0, rotationY, 0]} activeEvent={activeEvent}/> 
+            // ObjModel 내부에서 스케일링을 제거했다면 여기에 원하는 scale을 적용합니다.
+            // 500은 너무 클 수 있으므로, 작은 값(예: 1)부터 시도해보세요.
+            ? <ObjModel url={objUrl}/> 
             : <PlaceholderModel />
           }
         </group>)}

@@ -19,26 +19,6 @@ export default function App() {
   const mx = useMxConsole();
   const { pushEvent, activeEvent } = useMxConsole();
 
-// revoke object URL when replaced/unmounted
-// When a new event comes from Node/WS, update those values
-// useEffect(() => {
-//   const { activeEvent, pushEvent } = mx;
-//   pushEvent()
-//   console.log("evt:", activeEvent)
-//   if (!evt) {
-//     return
-//   };
-
-//   // you can adjust these mappings to your needs
-//   if (evt.type === 'zoom' && typeof evt.value === 'number') {
-//     console.log("hii2");
-//     setZoomOffset((z) => z + evt.value * 0.2); // 0.2 is just a scaling factor
-//   }
-
-//   if (evt.type === 'rotate' && typeof evt.value === 'number') {
-//     setRotationY((r) => r + evt.value * 0.1); // rotate a bit per step
-//   }
-// }, [mx.activeEvent]);
 useEffect(() => {
   if (activeEvent) {
     console.log('New active event:', activeEvent.value);
