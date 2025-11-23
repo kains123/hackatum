@@ -17,13 +17,13 @@ export default function App() {
   const [error, setError] = useState('');
 
   const mx = useMxConsole();
+  const { pushEvent, activeEvent } = useMxConsole();
 
-  // revoke object URL when replaced/unmounted
-  useEffect(() => {
-    return () => {
-      if (objUrl) URL.revokeObjectURL(objUrl);
-    };
-  }, [objUrl]);
+useEffect(() => {
+  if (activeEvent) {
+    console.log('New active event:', activeEvent.value);
+  }
+}, [activeEvent]);
 
   const handleObjFile = useCallback(
     (file) => {
@@ -149,7 +149,7 @@ export default function App() {
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
         >
-          <ThreeCanvas objUrl={objUrl} modelName={modelName} />
+          <ThreeCanvas objUrl={objUrl} modelName={modelName} activeEvent={activeEvent} />
 
           {/* Drag & drop overlay */}
           <div

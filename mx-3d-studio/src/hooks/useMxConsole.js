@@ -1,58 +1,103 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+// src/hooks/useMxConsole.js
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-/**
- * MX Console hook
- *
- * API surface for your hardware layer:
- *   - setConnected(true/false) from your device connection logic
- *   - pushEvent({ type, label, value }) when knobs/faders/buttons change
- */
+function makeId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return String(Date.now() + Math.random());
+}
+
 export function useMxConsole() {
-  const [connected, setConnected] = useState(true);
-  const [events, setEvents] = useState([]); // newest first
+  const [connected, setConnectedState] = useState(false);
+  const [events, setEvents] = useState([]);
   const [activeEvent, setActiveEvent] = useState(null);
 
-  const pushEvent = useCallback((event) => {
-    const fullEvent = {
-      id: Date.now() + Math.random(),
+  const wsRef = useRef(null);
+  const activeTimeoutRef = useRef(null);
+
+  // 🔹 Single place that updates events + activeEvent
+  const applyEvent = useCallback((evt) => {
+    const payload = {
+      id: makeId(),
+      type: evt.type ?? 'unknown',
+      label: evt.label ?? evt.type ?? 'MX Event',
+      // support count/delta/value all in one place
+      value: evt.value ?? evt.delta ?? evt.count ?? null,
       timestamp: new Date(),
-      ...event,
     };
 
-    setEvents((prev) => [fullEvent, ...prev.slice(0, 19)]); // keep last 20
-    setActiveEvent(fullEvent);
+    setEvents((prev) => [payload, ...prev]);
+    setActiveEvent(payload);
+
+    if (activeTimeoutRef.current) {
+      clearTimeout(activeTimeoutRef.current);
+    }
+    activeTimeoutRef.current = setTimeout(() => {
+      setActiveEvent(null);
+    }, 1500);
   }, []);
 
-  // Auto-clear the “toast” after a few seconds
   useEffect(() => {
-    if (!activeEvent) return;
-    const timeout = setTimeout(() => setActiveEvent(null), 3000);
-    return () => clearTimeout(timeout);
-  }, [activeEvent]);
+    const ws = new WebSocket('ws://localhost:3001');
+    wsRef.current = ws;
 
-  // Demo: simulate random MX events every few seconds
-  useEffect(() => {
-    if (!connected) return;
-    const interval = setInterval(() => {
-      const randomValue = Math.random();
-      const demoEvent = {
-        type: 'fader',
-        label: `Fader ${1 + Math.floor(Math.random() * 4)}`,
-        value: Number((randomValue * 100).toFixed(1)),
-      };
-      pushEvent(demoEvent);
-    }, 8000);
+    ws.onopen = () => {
+      console.log('[MX] WebSocket connected');
+      setConnectedState(true);
+    };
 
-    return () => clearInterval(interval);
-  }, [connected, pushEvent]);
+    ws.onclose = () => {
+      console.log('[MX] WebSocket disconnected');
+      setConnectedState(false);
+    };
 
-  const lastEvent = useMemo(() => events[0] || null, [events]);
+    ws.onerror = (err) => {
+      console.error('[MX] WebSocket error', err);
+      setConnectedState(false);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        console.log('[MX] raw message from server:', event.data);
+
+        const data = JSON.parse(event.data);
+        console.log('[MX] parsed message:', data);
+
+        // 👇 Use shared handler
+        applyEvent(data);
+      } catch (e) {
+        console.error('[MX] Failed to parse message', e);
+      }
+    };
+
+    return () => {
+      if (activeTimeoutRef.current) clearTimeout(activeTimeoutRef.current);
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+    };
+  }, [applyEvent]);
+
+  // Used by App when you load a model
+  const pushEvent = useCallback(
+    (evt) => {
+      // Just reuse the same pipeline the WebSocket uses
+      applyEvent(evt);
+    },
+    [applyEvent],
+  );
+
+  const setConnected = useCallback((fnOrValue) => {
+    setConnectedState((prev) =>
+      typeof fnOrValue === 'function' ? fnOrValue(prev) : fnOrValue,
+    );
+  }, []);
 
   return {
     connected,
-    setConnected, // expose so you can wire real hardware connection events
+    setConnected,
     events,
-    lastEvent,
     activeEvent,
     pushEvent,
   };
